@@ -5,6 +5,7 @@ use std::{
     str::FromStr,
 };
 
+use ansi_term as ansi;
 use clap::crate_version;
 use num_format::ToFormattedString;
 
@@ -139,8 +140,8 @@ impl<W> Printer<W> {
             list_files,
             path_length: columns - NO_LANG_ROW_LEN_NO_SPACES,
             writer,
-            row: "=".repeat(columns),
-            subrow: "-".repeat(columns),
+            row: "\u{2550}".repeat(columns),
+            subrow: "\u{2500}".repeat(columns),
             number_format,
         }
     }
@@ -363,11 +364,11 @@ impl<W: Write> Printer<W> {
     }
 
     fn print_row(&mut self) -> io::Result<()> {
-        writeln!(self.writer, "{}", self.row)
+        writeln!(self.writer, "{}", ansi::Color::White.dimmed().paint(&self.row))
     }
 
     fn print_subrow(&mut self) -> io::Result<()> {
-        writeln!(self.writer, "{}", self.subrow)
+        writeln!(self.writer, "{}", ansi::Color::White.dimmed().paint(&self.subrow))
     }
 
     fn print_report(
