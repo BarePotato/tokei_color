@@ -107,7 +107,7 @@ macro_rules! display_stats {
     ($f:expr, $this:expr, $name:expr, $max:expr) => {
         write!(
             $f,
-            " {: <max$} {:>12} {:>12} {:>12} {:>12}",
+            " {: <max$} {:>12} {:>12} {:>12} {:>10}",
             $name,
             $this.stats.lines(),
             $this.stats.code,

@@ -118,6 +118,12 @@ impl NumberFormatStyle {
     }
 }
 
+enum RowType {
+    Top,
+    Middle,
+    Bottom,
+}
+
 pub struct Printer<W> {
     writer: W,
     columns: usize,
@@ -140,8 +146,8 @@ impl<W> Printer<W> {
             list_files,
             path_length: columns - NO_LANG_ROW_LEN_NO_SPACES,
             writer,
-            row: "\u{2550}".repeat(columns),
-            subrow: "\u{2500}".repeat(columns),
+            row: "\u{2550}".repeat(columns - 2),
+            subrow: format!("\u{255F}{}\u{2563}", "\u{2500}".repeat(columns - 2)),
             number_format,
         }
     }
@@ -149,10 +155,10 @@ impl<W> Printer<W> {
 
 impl<W: Write> Printer<W> {
     pub fn print_header(&mut self) -> io::Result<()> {
-        self.print_row()?;
+        self.print_row(RowType::Top)?;
         writeln!(
             self.writer,
-            " {:<6$} {:>12} {:>12} {:>12} {:>12} {:>12}",
+            "\u{2551} {:<6$} {:>12} {:>12} {:>12} {:>12} {:>10} \u{2551}",
             "Language",
             "Files",
             "Lines",
@@ -161,7 +167,7 @@ impl<W: Write> Printer<W> {
             "Blanks",
             self.columns - NO_LANG_HEADER_ROW_LEN
         )?;
-        self.print_row()
+        self.print_row(RowType::Middle)
     }
 
     pub fn print_inaccuracy_warning(&mut self) -> io::Result<()> {
@@ -180,7 +186,7 @@ impl<W: Write> Printer<W> {
         write!(self.writer, " ")?;
         writeln!(
             self.writer,
-            "{:>6} {:>12} {:>12} {:>12} {:>12}",
+            "{:>6} {:>12} {:>12} {:>12} {:>10} \u{2551}",
             language
                 .reports
                 .len()
@@ -200,7 +206,7 @@ impl<W: Write> Printer<W> {
         write!(self.writer, " ")?;
         writeln!(
             self.writer,
-            "{:>6} {:>12} {:>12} {:>12} {:>12}",
+            "{:>6} {:>12} {:>12} {:>12} {:>10} \u{2551}",
             language
                 .children
                 .values()
@@ -227,7 +233,9 @@ impl<W: Write> Printer<W> {
         }
 
         if let Some(prefix) = prefix {
-            write!(self.writer, "{}", prefix)?;
+            write!(self.writer, "\u{2551}{}", prefix)?;
+        } else {
+            write!(self.writer, "\u{2551}")?;
         }
         // truncate and replace the last char with a `|` if the name is too long
         if lang_section_len < name.len() {
@@ -262,7 +270,7 @@ impl<W: Write> Printer<W> {
         if !stats.is_empty() {
             writeln!(
                 self.writer,
-                " {:>6} {:>12} {:>12} {:>12} {:>12}",
+                " {:>6} {:>12} {:>12} {:>12} {:>10} \u{2551}",
                 stats.len().to_formatted_string(&self.number_format),
                 (code + comments + blanks).to_formatted_string(&self.number_format),
                 code.to_formatted_string(&self.number_format),
@@ -363,12 +371,28 @@ impl<W: Write> Printer<W> {
         Ok(())
     }
 
-    fn print_row(&mut self) -> io::Result<()> {
-        writeln!(self.writer, "{}", ansi::Color::White.dimmed().paint(&self.row))
+    fn print_row(&mut self, row_type: RowType) -> io::Result<()> {
+        let (left_piece, right_piece) = match row_type {
+            RowType::Top => ("\u{2554}", "\u{2557}"),
+            RowType::Middle => ("\u{2560}", "\u{2563}"),
+            RowType::Bottom => ("\u{255A}", "\u{255D}"),
+        };
+
+        writeln!(
+            self.writer,
+            "{}{}{}",
+            left_piece,
+            ansi::Color::White.dimmed().paint(&self.row),
+            right_piece,
+        )
     }
 
     fn print_subrow(&mut self) -> io::Result<()> {
-        writeln!(self.writer, "{}", ansi::Color::White.dimmed().paint(&self.subrow))
+        writeln!(
+            self.writer,
+            "{}",
+            ansi::Color::White.dimmed().paint(&self.subrow)
+        )
     }
 
     fn print_report(
@@ -377,11 +401,11 @@ impl<W: Write> Printer<W> {
         stats: &CodeStats,
         inaccurate: bool,
     ) -> io::Result<()> {
-        self.print_language_name(inaccurate, &language_type.to_string(), Some(" |-"))?;
+        self.print_language_name(inaccurate, &language_type.to_string(), Some("\u{2551} |-"))?;
 
         writeln!(
             self.writer,
-            " {:>6} {:>12} {:>12} {:>12} {:>12}",
+            " {:>6} {:>12} {:>12} {:>12} {:>10} \u{2551}",
             " ",
             stats.lines().to_formatted_string(&self.number_format),
             stats.code.to_formatted_string(&self.number_format),
@@ -435,7 +459,7 @@ impl<W: Write> Printer<W> {
     ) -> io::Result<()> {
         writeln!(
             self.writer,
-            " {: <max$} {:>12} {:>12} {:>12} {:>12}",
+            "\u{2551} {: <max$} {:>12} {:>12} {:>12} {:>10} \u{2551}",
             name,
             report
                 .stats
@@ -453,8 +477,8 @@ impl<W: Write> Printer<W> {
 
     pub fn print_total(&mut self, languages: tokei::Languages) -> io::Result<()> {
         let total = languages.total();
-        self.print_row()?;
+        self.print_row(RowType::Middle)?;
         self.print_language_in_print_total(&total)?;
-        self.print_row()
+        self.print_row(RowType::Bottom)
     }
 }
